@@ -247,3 +247,90 @@ visualize_model(resnet18)
 
 plt.ioff()
 plt.show()
+
+epsilons = [0, .05, .1, .15, .2, .25, .3]
+
+# FGSM attack code
+def fgsm_attack(image, epsilon, data_grad):
+    # Collect the element-wise sign of the data gradient
+    sign_data_grad = data_grad.sign()
+    # Create the perturbed image by adjusting each pixel of the input image
+    perturbed_image = image + epsilon*sign_data_grad
+    # Adding clipping to maintain [0,1] range
+    perturbed_image = torch.clamp(perturbed_image, 0, 1)
+    # Return the perturbed image
+    return perturbed_image
+
+def test( model, device, test_loader, epsilon ):
+    # Accuracy counter
+    correct = 0
+    adv_examples = []
+
+    # Loop over all examples in test set
+    for inputs, targets in test_loader:
+        # the inputs are batched
+
+        # Send the data and label to the device
+        inputs, targets = inputs.to(device), targets.to(device)
+
+        # Set requires_grad attribute of tensor. Important for Attack
+        inputs.requires_grad = True
+
+        # Forward pass the data through the model
+        outputs = model(inputs)
+        _, init_preds = torch.max(outputs, 1)  # get the index of the max log-probability
+
+        # If the initial prediction is wrong, dont bother attacking, just move on
+        for j in range(inputs.size()[0]):
+            if init_preds[j].item() != targets[j].item():
+                print(init_preds[j])
+                continue
+
+        # Calculate the loss
+        loss = criterion(outputs, targets)
+
+        # Zero all existing gradients
+        model.zero_grad()
+
+        # Calculate gradients of model in backward pass
+        loss.backward()
+
+        # Collect datagrad
+        data_grad = inputs.grad.data
+
+        # Call FGSM Attack
+        perturbed_data = fgsm_attack(inputs, epsilon, data_grad)
+
+        # Re-classify the perturbed image
+        outputs = model(perturbed_data)
+
+        # Check for success
+        _,final_preds = torch.max(outputs, 1)  # get the index of the max log-probability
+        for j in range(inputs.size()[0]):
+            if final_preds[j].item() == targets[j].item():
+                correct += 1
+                # Special case for saving 0 epsilon examples
+                if (epsilon == 0) and (len(adv_examples) < 5):
+                    adv_ex = perturbed_data.squeeze().detach().cpu().numpy()
+                    adv_examples.append( (init_preds[j].item(), final_preds[j].item(), adv_ex) )
+            else:
+                # Save some adv examples for visualization later
+                if len(adv_examples) < 5:
+                    adv_ex = perturbed_data.squeeze().detach().cpu().numpy()
+                    adv_examples.append( (init_preds[j].item(), final_preds[j].item(), adv_ex) )
+
+    # Calculate final accuracy for this epsilon
+    final_acc = correct/float(len(test_loader))
+    print("Epsilon: {}\tTest Accuracy = {} / {} = {}".format(epsilon, correct, len(test_loader), final_acc))
+
+    # Return the accuracy and an adversarial example
+    return final_acc, adv_examples
+
+accuracies = []
+examples = []
+
+# Run test for each epsilon
+for eps in epsilons:
+    acc, ex = test(resnet18, device, selected_dataloader["val"], eps)
+    accuracies.append(acc)
+    examples.append(ex)
