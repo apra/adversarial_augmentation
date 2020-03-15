@@ -148,6 +148,7 @@ dmypy.json
 
 *.pyc
 .idea
+/data
 /defensegan/cache
 /defensegan/output
 /logs
