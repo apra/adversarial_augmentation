@@ -17,16 +17,19 @@ random.seed(42)
 ia.seed(42)
 
 
-def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all"):
+def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all", rot=(-12,12), noise=(0,25)):
     # list of possible augmentations and parameters
-    rotate = iaa.Affine(rotate=(-12, 12))
-    gaussian_noise = iaa.AdditiveGaussianNoise(scale=(0, 25))
+    rotate = iaa.Affine(rotate=rot)
+    gaussian_noise = iaa.AdditiveGaussianNoise(scale=noise)
+    flip = iaa.Fliplr(1)
     # map them to names that can be used
     augmenters = {
         "rotation": rotate,
         "r": rotate,
         "gaussian_noise": gaussian_noise,
-        "g": gaussian_noise
+        "g": gaussian_noise,
+        "fliplr": flip,
+        "flr": flip
     }
 
     # Correct dimensions of the image, normalize
@@ -42,7 +45,7 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all"):
     # get the list of augmentation possible
     augmentation_set = []
     if augmentations == "all":
-        augmentation_set = ["rotation", "gaussian_noise"]
+        augmentation_set = ["rotation", "gaussian_noise", "fliplr"]
     else:
         for aug in augmentations.split(","):
             if aug not in augmenters.keys():
