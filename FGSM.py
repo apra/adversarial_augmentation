@@ -41,6 +41,9 @@ def test(model, test_loader, epsilon, v=0):
     if v > 0:
         test_loader_len = len(test_loader)
 
+    predicted_probabilities = []
+    real_labels = []
+
     # Loop over all examples in test set
     for data_batch, target_batch in test_loader:
         if v > 0:
@@ -51,11 +54,14 @@ def test(model, test_loader, epsilon, v=0):
                 if percent % print_every == 0:
                     print("{}%".format(percent))
                 last_seen = percent
+
         for data, target in zip(data_batch, target_batch):
             # Send the data and label to the device
             data = data.view(1, 3, 32, 32)
             target = target.view(1)
             data, target = data.to(device), target.to(device)
+
+            real_labels.append(target)
 
             # Set requires_grad attribute of tensor. Important for Attack
             data.requires_grad = True
@@ -63,6 +69,8 @@ def test(model, test_loader, epsilon, v=0):
             # Forward pass the data through the model
             output = F.log_softmax(model(data), dim=1)
             init_pred = output.max(1, keepdim=True)[1]  # get the index of the max log-probability
+
+            predicted_probabilities.append(output.detach().cpu())
 
             # If the initial prediction is wrong, dont bother attacking, just move on
             if init_pred.item() != target.item():
@@ -106,7 +114,7 @@ def test(model, test_loader, epsilon, v=0):
                                                              len(test_loader) * test_loader.batch_size, final_acc))
 
     # Return the accuracy and an adversarial example
-    return final_acc, adv_examples
+    return final_acc, adv_examples, predicted_probabilities, real_labels
 
 
 def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augmentations="all", v=0):
@@ -134,7 +142,7 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
                     print("{}%".format(percent))
                 last_seen = percent
 
-        real_labels.append(target_batch)
+        real_labels.append(target_batch.cpu())
         # data_batch has dimensions: [batch_size, channels, width, height]
         # target_batch has dimensions: [batch_size], the class is a number between 0 and 9
         # send data and target to the device
