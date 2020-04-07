@@ -19,7 +19,7 @@ ia.seed(42)
 
 def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all", rot=(-12,12), noise=(0,25)):
     # list of possible augmentations and parameters
-    rotate = iaa.Affine(rotate=rot)
+    rotate = iaa.Affine(rotate=rot, mode="edge")
     gaussian_noise = iaa.AdditiveGaussianNoise(scale=noise)
     flip = iaa.Fliplr(1)
     # map them to names that can be used
