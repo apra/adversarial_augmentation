@@ -16,16 +16,17 @@ def fgsm_attack_batch(batch, epsilon, data_grad):
     # Return the perturbed image
     return adversarial_batch
 
+
 def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augmentations="all", v=0):
     # Accuracy counter
     correct = 0
     adv_examples = []
 
-    test_loader_len = 0
+    data_loader_len = 0
     test_iteration = 0
     last_seen = 0
     if v > 0:
-        test_loader_len = len(data_loader)
+        data_loader_len = len(data_loader)
 
     pred_log_probs = []
     real_labels = []
@@ -34,7 +35,7 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
     for data_batch, target_batch in data_loader:
         if v > 0:
             test_iteration += 1
-            percent = round(100 * (test_iteration / test_loader_len))
+            percent = round(100 * (test_iteration / data_loader_len))
             if percent > last_seen:
                 print_every = 25
                 if percent % print_every == 0:
