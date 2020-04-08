@@ -121,10 +121,14 @@ def get_features(model):
     return model_feature, p
 
 
-def get_FID(inputs, model_features, device, augmentation="g", noise_level=[0, 10, 20, 30]):
+def get_FID(inputs, model_features, device, augmentation="g", noise_level=[0, 10, 20, 30], bottleneck=False):
     n_input = inputs.shape[0]
     feature_input = model_features(inputs.to(device))
-    feature_input_num = feature_input.cpu().detach().numpy().reshape(n_input, 512)
+    if bottleneck:
+        #adjust for resnet bottleneck expansion
+        feature_input_num = feature_input.cpu().detach().numpy().reshape(n_input, 512*4)
+    else:
+        feature_input_num = feature_input.cpu().detach().numpy().reshape(n_input, 512)
     FID = []
     plot_batch = []
     for i in noise_level:
