@@ -14,7 +14,11 @@ Use transfer learning techniques to slightly modify an already-trained model (su
 
 In a white-box scenario, use the Fast Gradient Sign Method to generate adversarial examples. (https://pytorch.org/tutorials/beginner/fgsm_tutorial.html)
 
-The model state is saved in the `models` folder. The model structure needs to be adjusted before the weights are loaded. (the current model present, is a resnet18 trained on CIFAR-10 changing only the last layer, 25 epocs, training complete in 71m 29s on Google Colab, with best validation accuracy of 0.773600)
+The model has been trained and achieves an accuracy of `93%` ca., and is used to obtain various measures.
+
+The FID is used to measure how much our network thinks an image is different from the original when we feed an augmented image. This is useful to evaluate the effects of augmentations on the prediction-capabilities of the model.
+
+We then measure also the calibration of our network to find whether its output correctly predicts the class-belonging probability of the sample. When a low probability is selected the network should make more mistakes, thus showing that it is possible to make correct judgements on the certainty of the prediction based on the class-belonging probability that the network outputs.
 
 
 ## Papers
