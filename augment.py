@@ -19,6 +19,8 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
                           rot=(-12, 12),
                           noise=(0, 25)
                           ):
+    if augmentations == "none":
+        return original_tensor.unsqueeze(0), None, None
     # list of possible augmentations and parameters
     rotate = iaa.Affine(rotate=rot, mode="edge")
     gaussian_noise = iaa.AdditiveGaussianNoise(scale=noise)
@@ -38,6 +40,7 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
     mean = np.array([0.4914, 0.4822, 0.4465])
     std = np.array([0.2023, 0.1994, 0.2010])
     original_batch = std * original_batch + mean
+    #make sure stuff is between 0 and 1
     original_batch = np.clip(original_batch, 0, 1)
     # convert to 0-255 uint8 format for imgaug
     original_batch = original_batch * 255
