@@ -24,3 +24,7 @@ Defense-GAN:  https://arxiv.org/pdf/1805.06605.pdf
 Review of the adversarial literature: https://arxiv.org/pdf/1909.08072.pdf
 
 Theoretical "historical" paper (goodfellow and bengio): https://arxiv.org/pdf/1611.01236.pdf
+
+Carilbration of Neural Networks: https://arxiv.org/pdf/1706.04599.pdf
+
+FID score origin: https://arxiv.org/pdf/1706.08500.pdf
