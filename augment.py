@@ -11,13 +11,16 @@ import random
 import imgaug as ia
 from imgaug import augmenters as iaa
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 random.seed(42)
 ia.seed(42)
 
 
-def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all", rot=(-12,12), noise=(0,25)):
+def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
+                          rot=(-12, 12),
+                          noise=(0, 25)
+                          ):
+    if augmentations == "none":
+        return original_tensor.unsqueeze(0), None, None
     # list of possible augmentations and parameters
     rotate = iaa.Affine(rotate=rot, mode="edge")
     gaussian_noise = iaa.AdditiveGaussianNoise(scale=noise)
@@ -37,6 +40,7 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all", ro
     mean = np.array([0.4914, 0.4822, 0.4465])
     std = np.array([0.2023, 0.1994, 0.2010])
     original_batch = std * original_batch + mean
+    #make sure stuff is between 0 and 1
     original_batch = np.clip(original_batch, 0, 1)
     # convert to 0-255 uint8 format for imgaug
     original_batch = original_batch * 255
@@ -54,8 +58,8 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all", ro
             else:
                 augmentation_set.append(aug)
     assert len(augmentation_set) > 0
-    # prepare for output
-    augmented_batches = []
+    # prepare for output (keep it in the cpu)
+    augmented_batches = torch.Tensor()
 
     # the sequence of augmentations to apply to the batch of images
     augmentation_sequences = []
@@ -75,6 +79,6 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all", ro
         aug_batch_numpy = (aug_batch_numpy - mean) / std
         # bring to pytorch
         aug_batch_torch = torch.from_numpy(aug_batch_numpy.transpose((0, 3, 1, 2))).float()
-        augmented_batches.append(aug_batch_torch)
+        augmented_batches = torch.cat((augmented_batches, aug_batch_torch.unsqueeze(0)), 0)
 
     return augmented_batches, augmentation_sequences, augmentation_sequences_names
