@@ -18,7 +18,7 @@ The model has been trained and achieves an accuracy of `93%` ca., and is used to
 
 The FID is used to measure how much our network thinks an image is different from the original when we feed an augmented image. This is useful to evaluate the effects of augmentations on the prediction-capabilities of the model.
 
-We then measure also the calibration of our network to find whether its output correctly predicts the class-belonging probability of the sample $P(\mathcal{G}=k|X=x)$. When a low probability is selected the network should make more mistakes, thus showing that it is possible to make correct judgements on the certainty of the prediction based on the class-belonging probability that the network outputs.
+We then measure also the calibration of our network to find whether its output correctly predicts the class-belonging probability of the sample $P(G=k|X=x)$. When a low probability is selected the network should make more mistakes, thus showing that it is possible to make correct judgements on the certainty of the prediction based on the class-belonging probability that the network outputs.
 
 
 ## Papers
