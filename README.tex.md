@@ -28,3 +28,5 @@ FID score original: https://arxiv.org/pdf/1706.08500.pdf
 Framework for attacks/defense: https://arxiv.org/pdf/1712.07107.pdf
 
 Some theory for TTA: https://www.sciencedirect.com/science/article/pii/S0925231219301961?via%3Dihub, http://openaccess.thecvf.com/content_cvpr_2018/papers/Radosavovic_Data_Distillation_Towards_CVPR_2018_paper.pdf, https://arxiv.org/pdf/1412.4864.pdf
+
+Bayesian defense: https://arxiv.org/pdf/1703.00410.pdf
