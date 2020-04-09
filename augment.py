@@ -17,14 +17,19 @@ ia.seed(42)
 
 def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
                           rot=(-12, 12),
-                          noise=(0, 25)
+                          noise=(0, 25),
+                          flip_p=0.5,
+                          br_add=25,
+                          shearx_amnt= 20
                           ):
     if augmentations == "none":
         return original_tensor.unsqueeze(0), None, None
     # list of possible augmentations and parameters
     rotate = iaa.Affine(rotate=rot, mode="edge")
     gaussian_noise = iaa.AdditiveGaussianNoise(scale=noise)
-    flip = iaa.Fliplr(1)
+    flip = iaa.Fliplr(flip_p)
+    brightness_add = iaa.WithBrightnessChannels(iaa.Add((-br_add, br_add)))
+    shear_x = iaa.ShearX((-shearx_amnt, shearx_amnt))
     # map them to names that can be used
     augmenters = {
         "rotation": rotate,
@@ -32,7 +37,9 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
         "gaussian_noise": gaussian_noise,
         "g": gaussian_noise,
         "fliplr": flip,
-        "flr": flip
+        "flr": flip,
+        "brightness_add": brightness_add,
+        "bra": brightness_add
     }
 
     # Correct dimensions of the image, normalize
@@ -49,9 +56,10 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
     # get the list of augmentation possible
     augmentation_set = []
     if augmentations == "all":
-        augmentation_set = ["rotation", "gaussian_noise", "fliplr"]
+        augmentation_set = ["rotation", "gaussian_noise", "fliplr", "brightness_add"]
     else:
         for aug in augmentations.split(","):
+            aug = aug.strip()
             if aug not in augmenters.keys():
                 print("Augmentation: {} is not recognized.\n"
                       "Choose one out of the following:\n{}".format(aug, augmenters.keys()))

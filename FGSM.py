@@ -37,7 +37,7 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
             test_iteration += 1
             percent = round(100 * (test_iteration / data_loader_len))
             if percent > last_seen:
-                print_every = 25
+                print_every = 10
                 if percent % print_every == 0:
                     print("{}%".format(percent))
                 last_seen = percent

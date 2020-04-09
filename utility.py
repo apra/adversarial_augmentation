@@ -28,74 +28,88 @@ import augment
 def compute_bin(conf_thresh_lower, conf_thresh_upper, conf, pred, true):
     filtered = [x for x in zip(pred, true, conf) if x[2] > conf_thresh_lower and x[2] <= conf_thresh_upper]
     if len(filtered) < 1:
-        return 0,0,0
+        return 0, 0, 0
     else:
         correct = len([x for x in filtered if x[0] == x[1]])  # How many correct labels
         len_bin = len(filtered)  # How many elements falls into given bin
         avg_conf = sum([x[2] for x in filtered]) / len_bin  # Avg confidence of BIN
-        accuracy = float(correct)/len_bin  # accuracy of BIN
+        accuracy = float(correct) / len_bin  # accuracy of BIN
         return accuracy, avg_conf, len_bin
-    
+
+
 def cal_statistics(target, pred_log_prob, nclasses=10):
-    probs=torch.stack(pred_log_prob).exp().view(-1,nclasses)
-    nimages=probs.shape[0]
+    probs = torch.stack(pred_log_prob).exp().view(-1, nclasses)
+    nimages = probs.shape[0]
 
     target_labels = torch.stack(target).view(-1)
-    pred_conf, pred_labels=[i.view(-1) for i in probs.max(1,keepdim=True)]
-    pred_acc=((pred_labels==target_labels).sum()).type(torch.DoubleTensor).div(nimages)
-    pred_err_percent = 1-pred_acc
+    pred_conf, pred_labels = [i.view(-1) for i in probs.max(1, keepdim=True)]
+    pred_acc = ((pred_labels == target_labels).sum()).type(torch.DoubleTensor).div(nimages)
+    pred_err_percent = 1 - pred_acc
     return pred_acc, pred_conf, pred_labels, target_labels, pred_err_percent
-    
+
+
 def get_bins(target, pred_log_prob, nclasses=10):
-    
     bin_size = 0.1
-    upper_bnd = np.arange(bin_size, 1+bin_size, bin_size)
-    ece = 0 
-    
+    upper_bnd = np.arange(bin_size, 1 + bin_size, bin_size)
+    ece = 0
+
     # get statistics
     pred_acc, pred_conf, pred_labels, target_labels, pred_err_percent = cal_statistics(target, pred_log_prob)
     n = len(pred_conf)
-    
+
     # store bins
     bin_accs = []
     bin_confs = []
     bin_lens = []
-    
+
     # ECE and loop through each bin given by bound
     for conf_thresh in upper_bnd:
-        acc, avg_conf, len_bin = compute_bin(conf_thresh-bin_size, conf_thresh, pred_conf, pred_labels, target_labels)
+        acc, avg_conf, len_bin = compute_bin(conf_thresh - bin_size, conf_thresh, pred_conf, pred_labels, target_labels)
         bin_accs.append(acc)
         bin_confs.append(avg_conf)
         bin_lens.append(len_bin)
         # Add weighting to ECE
-        ece += np.abs(acc-avg_conf)*len_bin/n
-    
+        ece += np.abs(acc - avg_conf) * len_bin / n
+
     return ece, bin_accs, bin_confs, bin_lens
 
-def reliability_diagram_plot(accs, confs, bin_size=0.1, title = "Reliability Diagram"):
-    outputs = confs
-    gap = accs
-    
-    positions = np.arange(0+bin_size/2, 1+bin_size/2, bin_size)
-    
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(22.5, 4), sharex='col', sharey='row')
-    
-    # Gap
-    gap_plt = ax.bar(positions, gap, width = bin_size, edgecolor = "red", color = "red", alpha = 0.3, label="Gap", linewidth=1,zorder=1)
+
+def reliability_diagram_plot(accs, confs, bin_size=0.1, title="Reliability Diagram"):
+    import seaborn as sns
+    sns.plotting_context("paper")
+    sns.set_style("whitegrid")
+    outputs = accs
+    gap = confs
+
+    positions = np.arange(0 + bin_size / 2, 1 + bin_size / 2, bin_size)
+
+    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(4.5, 5))
+    ax.grid(True, axis="y", linestyle="--", alpha=0.5, zorder=1)
 
     # Output
-    output_plt = ax.bar(positions, outputs, width = bin_size, edgecolor = "black", color = "blue", label="Outputs", zorder = 2)
+    output_plt = ax.bar(positions, outputs, width=bin_size, edgecolor="black", color="blue", alpha=1, label="Outputs",
+                        zorder=2)
+
+    # Gap
+    gap_plt = ax.bar(positions, np.maximum(gap, outputs) - np.minimum(outputs, gap), bottom=np.minimum(outputs, gap),
+                     width=bin_size, edgecolor="red", color="red", alpha=0.25, label="Gap", hatch='/', linewidth=2,
+                     zorder=3)
 
     # Line plot with center line.
     ax.set_aspect('equal')
-    ax.plot([0,1], [0,1], linestyle = "dashed", zorder=3)
-    ax.legend(handles = [output_plt, gap_plt])
-    ax.set_xlim(0,1)
-    ax.set_ylim(0,1)
-    ax.set_title(title, fontsize=16)
-    ax.set_xlabel("Confidence", fontsize=12, color = "black")
-    ax.set_ylabel("Accuracy", fontsize=12, color = "black")
-    
+
+    ax.plot([0, 1], [0, 1], linestyle="dashed", zorder=4)
+    ax.legend(handles=[output_plt, gap_plt])
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.set_title(title, fontsize=15)
+    ax.set_xlabel("Confidence", fontsize=12, color="black")
+    ax.set_ylabel("Accuracy", fontsize=12, color="black")
+    plt.savefig("reliability_diagram_.svg")
+
+    return fig
+
+
 # calculate frechet inception distance
 def calculate_fid(image1, image2):
     # calculate mean and covariance statistics
@@ -125,15 +139,25 @@ def get_FID(inputs, model_features, device, augmentation="g", noise_level=[0, 10
     n_input = inputs.shape[0]
     feature_input = model_features(inputs.to(device))
     if bottleneck:
-        #adjust for resnet bottleneck expansion
-        feature_input_num = feature_input.cpu().detach().numpy().reshape(n_input, 512*4)
+        # adjust for resnet bottleneck expansion
+        feature_input_num = feature_input.cpu().detach().numpy().reshape(n_input, 512 * 4)
     else:
         feature_input_num = feature_input.cpu().detach().numpy().reshape(n_input, 512)
     FID = []
     plot_batch = []
     for i in noise_level:
-        aug_batches, aug_seqs, aug_seqs_names = augment.compute_augmentations(inputs, augmentations=augmentation, n=1,
-                                                                              depth=1, noise=(i, i), rot=(i, i))
+        if augmentation in ("flr", "flipr"):
+            aug_batches, aug_seqs, aug_seqs_names = augment.compute_augmentations(inputs, augmentations=augmentation,
+                                                                                  n=1,
+                                                                                  depth=1,
+                                                                                  flip_p=i)
+        else:
+            aug_batches, aug_seqs, aug_seqs_names = augment.compute_augmentations(inputs, augmentations=augmentation,
+                                                                                  n=1,
+                                                                                  depth=1,
+                                                                                  noise=(i, i), rot=(i, i),
+                                                                                  br_add=i)
+
         plot_batch.append(aug_batches[0][0])
         aug_features = model_features(aug_batches[0].to(device))
         aug_features_num = aug_features.cpu().detach().numpy().reshape(n_input, -1)
@@ -142,7 +166,7 @@ def get_FID(inputs, model_features, device, augmentation="g", noise_level=[0, 10
     return FID, plot_batch
 
 
-def plot_fid(FID, plot_batch, ylim=150, xy=[1.5, 130], x_labels=[0, 1, 2, 3], figsize=(10, 5), title="", xlabel="Noise",
+def plot_fid(FID, plot_batch, x_labels=[0, 1, 2, 3], figsize=(10, 5), title="", xlabel="Noise",
              ylabel="FID"):
     sns.plotting_context("paper")
     sns.set_style("whitegrid")
@@ -168,13 +192,14 @@ def plot_fid(FID, plot_batch, ylim=150, xy=[1.5, 130], x_labels=[0, 1, 2, 3], fi
     ax.add_artist(ab)
 
     ax.set_title(title)
-    ax.set_xticks([0, 1, 2, 3])
+    ax.set_xticks(list(range(len(x_labels))))
     ax.set_xticklabels(x_labels, fontsize=12)
     ax.set_ylabel(ylabel)
     ax.set_xlabel(xlabel)
-    #ax.set_ylim(0, np.max(FID)*1.5)
+    # ax.set_ylim(0, np.max(FID)*1.5)
     ax.set_ylim(0, ylim)
     ax.plot(FID, marker='*')
+
 
 ### OLD METHOD
 def plot_reliability(predicted_probs, real_labels, title="Realiability plot", figsize=(7, 7)):
