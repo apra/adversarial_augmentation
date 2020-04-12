@@ -4,6 +4,7 @@ import numpy as np
 import torch.nn.functional as F
 import augment
 import math
+import torch.distributions as td
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -17,7 +18,7 @@ def fgsm_attack_batch(batch, epsilon, data_grad):
     return adversarial_batch
 
 
-def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augmentations="all", v=0):
+def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augmentations="all", v=0, n_examples=100):
     # Accuracy counter
     correct = 0
     adv_examples = []
@@ -115,12 +116,12 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
                 if final_pred == target.item():
                     correct += 1
                     # Special case for saving 0 epsilon examples
-                    if (epsilon == 0) and (len(adv_examples) < 5):
+                    if (epsilon == 0) and (len(adv_examples) < n_examples):
                         adv_ex = perturbed_data.squeeze().detach().cpu().numpy()
                         adv_examples.append((init_pred.item(), final_pred, adv_ex))
                 else:
                     # Save some adv examples for visualization later
-                    if len(adv_examples) < 5:
+                    if len(adv_examples) < n_examples:
                         adv_ex = perturbed_data.squeeze().detach().cpu().numpy()
                         adv_examples.append((init_pred.item(), final_pred, adv_ex))
 
@@ -131,3 +132,121 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
 
     # Return the accuracy and an adversarial example
     return final_acc, adv_examples, pred_log_probs, real_labels
+
+'''
+getExamples creates three lists, one list containing the natural errors. One list containing
+correcly classified examples and a final list containing adversarials. Each entry in the list contains the following:
+[true class, [the model predicted class, model augmented predicted class], [image, augmented image], [softmax of output of model,softmax of output for augmented image]]
+'''
+def getExamples(model, data_loader, epsilon = 0.01, n=100, augmentations="flr"):
+    n_samples = n-1
+    miss_classified_examples = []
+    adv_examples = []
+    correct_classified_examples = []
+    limit1 = 0
+    limit2 = 0
+
+    for data_batch, target_batch in data_loader:
+        if (limit1 == n_samples) and (limit2 == n_samples): # stop when we got the samples
+            break
+
+        # TODO: This loop could probably be done in a smarter way for speed up
+        for data, target in zip(data_batch, target_batch):
+            data=data.view(1,3,32,32)
+            # TODO: make so compute_augmentations takes all inputs, right now only accounts for flip
+            augmented_batch, _, _ = augment.compute_augmentations(data.cpu(),
+                                    n=1, depth=1, augmentations=augmentations, flip_p=1) 
+            
+            # concatenate the true image and the augmented image
+            data=torch.cat((data, augmented_batch.view(-1,3,32,32)), 0)
+
+            target=torch.cat((target.view(1),target.view(1)), 0)
+            data, target = data.to(device), target.to(device)
+
+            data.requires_grad = True
+            output =  F.log_softmax(model(data),dim=1)
+            init_pred = output.max(1, keepdim=True)[1]
+
+            # If the initial prediction is wrong, dont bother attacking, just move on, 
+            # but save the natural error example.
+            if init_pred[0].item() != target[0].item():
+                if len(miss_classified_examples) <= n_samples:
+                    limit1 += 1
+                    data_miss=data.detach().cpu()
+                    output_miss=output.detach().cpu()
+                    miss_classified_examples.append((target.detach().cpu(), init_pred.detach().cpu(), data_miss, output_miss.exp())) 
+                continue
+
+            # Call FGSM Attack
+            loss = F.nll_loss(output, target)
+            model.zero_grad()
+            loss.backward()
+            data_grad = data.grad.data
+            perturbed_data = fgsm_attack_batch(data, epsilon, data_grad)
+
+            # Re-classify the perturbed image
+            output_adv = F.log_softmax(model(perturbed_data),dim=1)
+
+            # Check for successful attack
+            final_pred = output_adv.max(1, keepdim=True)[1]
+            
+            # Save some adversarial examples and correct classified images
+            if final_pred[0].item() != target[0].item():
+                if len(adv_examples) <= n_samples:
+                    limit2 += 1
+                    #save correct image
+                    data_correct=data.detach().cpu()
+                    output_correct=output.detach().cpu()
+                    correct_classified_examples.append((target.detach().cpu(), 
+                                                        init_pred.detach().cpu(), 
+                                                        data_correct, output_correct.exp())) 
+                    
+                    #save adversarial
+                    out_adv = output_adv.detach().cpu()
+                    adv_ex = perturbed_data.detach().cpu()
+                    adv_examples.append( (target.detach().cpu(), final_pred.detach().cpu(), adv_ex, out_adv.exp()))
+                
+    return correct_classified_examples, miss_classified_examples, adv_examples
+
+'''
+Helper function to get data from getAugmentImages
+'''
+def getOutput(data):
+    target = []
+    pred = []
+    image = []
+    out = []
+    for i,j,k,l in data:
+        target.append(i)
+        pred.append(j.view(-1))
+        image.append(k)
+        out.append(l)
+    return target, pred, image, out
+
+'''
+Compute the KLD of the output||augmented_output
+'''        
+def DKL(out_softmax):
+    dkl = []
+    for data in out_softmax:
+        p=td.Categorical(probs=data[0])
+        q=td.Categorical(probs=data[1])
+        dkl.append(td.kl_divergence(p, q))
+    return dkl
+
+'''
+Calculate data for plots
+'''
+def DKLBin(dkl, bin_size = 0.2, bin_max=10):
+    dkl_count = []
+    bins_start = np.arange(0, bin_max, bin_size)
+    bins_end = bins_start+bin_size
+    bin_length = len(bins_start) 
+    n_images = len(dkl)
+    for i in range(bin_length):
+        counter = 0
+        for j in range(n_images):
+            if (bins_start[i] <= dkl[j]) and (bins_end[i] > dkl[j]):
+                counter+=1
+        dkl_count.append(counter/n_images)
+    return dkl_count, bins_start
