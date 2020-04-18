@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #VISUALIZE
-def imshow(inputs, title=None):
+def imshow(inputs, title=None, savefigure="temp"):
     """Imshow for Tensor."""
     inp = torchvision.utils.make_grid(inputs)
     inp = inp.numpy().transpose((1, 2, 0))
@@ -17,6 +17,7 @@ def imshow(inputs, title=None):
     if title is not None:
         plt.title(title)
     # pause a bit so that plots are updated
+    plt.savefig("figures/"+savefigure)
     plt.pause(0.001)
     
 def visualize_model(model, testloader, classes, num_images=6):

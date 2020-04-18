@@ -74,7 +74,7 @@ def get_bins(target, pred_log_prob, nclasses=10):
     return ece, bin_accs, bin_confs, bin_lens
 
 
-def reliability_diagram_plot(accs, confs, bin_size=0.1, title="Reliability Diagram"):
+def reliability_diagram_plot(accs, confs, bin_size=0.1, title="Reliability Diagram", plot_n=1):
     import seaborn as sns
     sns.plotting_context("paper")
     sns.set_style("whitegrid")
@@ -105,8 +105,8 @@ def reliability_diagram_plot(accs, confs, bin_size=0.1, title="Reliability Diagr
     ax.set_title(title, fontsize=15)
     ax.set_xlabel("Confidence", fontsize=12, color="black")
     ax.set_ylabel("Accuracy", fontsize=12, color="black")
-    plt.savefig("reliability_diagram_.svg")
-
+    plt.savefig("figures/"+"reliability_diagram_"+str(plot_n)+".png")
+    plt.close()
     return fig
 
 
@@ -167,7 +167,7 @@ def get_FID(inputs, model_features, device, augmentation="g", noise_level=[0, 10
 
 
 def plot_fid(FID, plot_batch, x_labels=[0, 1, 2, 3], figsize=(10, 5), title="", xlabel="Noise",
-             ylabel="FID"):
+             ylabel="FID", plot_n="plot1"):
     sns.plotting_context("paper")
     sns.set_style("whitegrid")
     _, ax = plt.subplots(figsize=figsize)
@@ -199,7 +199,7 @@ def plot_fid(FID, plot_batch, x_labels=[0, 1, 2, 3], figsize=(10, 5), title="", 
     # ax.set_ylim(0, np.max(FID)*1.5)
     ax.set_ylim(0, ylim)
     ax.plot(FID, marker='*')
-
+    plt.savefig("figures/"+plot_n)
 
 ### OLD METHOD
 def plot_reliability(predicted_probs, real_labels, title="Realiability plot", figsize=(7, 7)):

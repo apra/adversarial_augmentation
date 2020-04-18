@@ -28,7 +28,6 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
     last_seen = 0
     if v > 0:
         data_loader_len = len(data_loader)
-
     pred_log_probs = []
     real_labels = []
 
@@ -68,7 +67,7 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
 
         # Call FGSM Attack and attach to other images
         adversarial_images = fgsm_attack_batch(data_batch, epsilon, data_grad)
-
+        
         with torch.no_grad():
             # augment the adversarial images, each batch is augmented.
             # shape: [n_augments, batch_size, channels, w, h]. Tt's a tensor in the cpu [n_aug, batch_size, ...]
@@ -85,10 +84,10 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
 
                 log_probs_aug_batch = torch.cat((log_probs_aug_batch, output.unsqueeze(0)), 0)
 
-            mean_pred_batch = torch.mean(log_probs_aug_batch, dim=0)
+            mean_pred_batch = torch.mean(log_probs_aug_batch.exp(), dim=0)
             std_pred_batch = torch.std(log_probs_aug_batch, dim=0)
 
-            pred_log_probs.append(mean_pred_batch.detach().cpu())
+            pred_log_probs.append(mean_pred_batch.log().detach().cpu())
 
             if mode == "mean":
                 selected_class_batch = mean_pred_batch.max(1, keepdim=True)[1]
@@ -132,80 +131,6 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
 
     # Return the accuracy and an adversarial example
     return final_acc, adv_examples, pred_log_probs, real_labels
-
-
-def getExamples(model, data_loader, epsilon=0.3, n=300, augmentations="flr"):
-    """
-    getExamples creates three lists, one list containing the natural errors. One list containing
-    correctly classified examples and a final list containing adversarial. Each entry in the list contains the following:
-    [true class, [the model predicted class, model augmented predicted class], [image, augmented image], [softmax of output of model, softmax of output for augmented image]]
-    """
-    n_samples = n - 1
-    miss_classified_examples = []
-    adv_examples = []
-    correct_classified_examples = []
-
-    for data_batch, target_batch in data_loader:
-        if (len(adv_examples) == n_samples) and (len(miss_classified_examples) == n_samples):  # stop when we got the samples
-            break
-
-        # TODO: This loop could probably be done in a smarter way for speed up
-        for data, target in zip(data_batch, target_batch):
-            data = data.view(1, 3, 32, 32)
-            # TODO: make so compute_augmentations takes all inputs, right now only accounts for flip
-            augmented_batch, _, _ = augment.compute_augmentations(data.cpu(),
-                                                                  n=1, depth=1, augmentations=augmentations, flip_p=1)
-
-            # concatenate the true image and the augmented image
-            data = torch.cat((data, augmented_batch.view(-1, 3, 32, 32)), 0)
-
-            target = torch.cat((target.view(1), target.view(1)), 0)
-            data, target = data.to(device), target.to(device)
-
-            data.requires_grad = True
-            output = F.log_softmax(model(data), dim=1)
-            init_pred = output.max(1, keepdim=True)[1]
-
-            # If the initial prediction is wrong, dont bother attacking, just move on, 
-            # but save the natural error example.
-            if init_pred[0].item() != target[0].item():
-                if len(miss_classified_examples) <= n_samples:
-                    data_miss = data.detach().cpu()
-                    output_miss = output.detach().cpu()
-                    miss_classified_examples.append(
-                        (target.detach().cpu(), init_pred.detach().cpu(), data_miss, output_miss.exp()))
-                continue
-
-
-            # Call FGSM Attack
-            loss = F.nll_loss(output, target)
-            model.zero_grad()
-            loss.backward()
-            data_grad = data.grad.data
-            perturbed_data = fgsm_attack_batch(data, epsilon, data_grad)
-
-            # Re-classify the perturbed image
-            output_adv = F.log_softmax(model(perturbed_data), dim=1)
-
-            # Check for successful attack
-            final_pred = output_adv.max(1, keepdim=True)[1]
-
-            # Save some adversarial examples and correct classified images
-            if final_pred[0].item() != target[0].item():
-                if len(adv_examples) <= n_samples:
-                    # save correct image
-                    data_correct = data.detach().cpu()
-                    output_correct = output.detach().cpu()
-                    correct_classified_examples.append((target.detach().cpu(),
-                                                        init_pred.detach().cpu(),
-                                                        data_correct, output_correct.exp()))
-
-                    # save adversarial
-                    out_adv = output_adv.detach().cpu()
-                    adv_ex = perturbed_data.detach().cpu()
-                    adv_examples.append((target.detach().cpu(), final_pred.detach().cpu(), adv_ex, out_adv.exp()))
-
-    return correct_classified_examples, miss_classified_examples, adv_examples
 
 
 '''
@@ -258,3 +183,125 @@ def DKLBin(dkl, bin_size=0.2, bin_max=10):
                 counter += 1
         dkl_count.append(counter / n_images)
     return dkl_count, bins_start
+
+def getExamples(model, data_loader, epsilon=0.3, n=300, augmentations="r", onlybest = False):
+    """
+    getExamples creates three lists, one list containing the natural errors. One list containing
+    correctly classified examples and a final list containing adversarial. Each entry in the list contains the following:
+    [true class, [the model predicted class, model augmented predicted class], [image, augmented image], [softmax of output of model, softmax of output for augmented image]]
+    """
+    n_samples = n - 1
+    miss_classified_examples = []
+    adv_examples = []
+    correct_classified_examples = []
+
+    for data_batch, target_batch in data_loader:
+        if (len(adv_examples) > n_samples) and (len(miss_classified_examples) > n_samples) and (len(correct_classified_examples) > n_samples):  # stop when we got the samples
+            break
+
+        # TODO: This loop could probably be done in a smarter way for speed up
+        for original_data, original_target in zip(data_batch, target_batch):
+            data = original_data.view(1, 3, 32, 32)
+            # TODO: make so compute_augmentations takes all inputs, right now only accounts for flip
+            augmented_batch, _, _ = augment.compute_augmentations(data.cpu(),
+                                                                  n=1, depth=1, augmentations=augmentations, flip_p=1, rot=(-20.20))
+            augmented_batch = augmented_batch.squeeze(0)
+            # concatenate the true image and the augmented image
+            data = torch.cat((data, augmented_batch), 0)
+            target = torch.cat((original_target.view(1), original_target.view(1)), 0)
+            
+            
+            data, target = data.to(device), target.to(device)
+
+            data.requires_grad = False
+            output = F.log_softmax(model(data), dim=1)
+            init_pred = output.max(1, keepdim=True)[1]
+
+            # If the initial prediction is wrong, dont bother attacking, just move on, 
+            # but save the natural error example.
+            if init_pred[0].item() != target[0].item():
+                if len(miss_classified_examples) <= n_samples:
+                    data_miss = data.detach().cpu()
+                    output_miss = output.detach().cpu()
+                    miss_classified_examples.append((target.detach().cpu(), 
+                                                     init_pred.detach().cpu(), 
+                                                     data_miss, 
+                                                     output_miss.exp()))
+                continue
+            else:
+                if len(correct_classified_examples) <= n_samples:
+                    # save correct image
+                    data_correct = data.detach().cpu()
+                    output_correct = output.detach().cpu()
+                    correct_classified_examples.append((target.detach().cpu(),
+                                                        init_pred.detach().cpu(),
+                                                        data_correct, 
+                                                        output_correct.exp()))
+
+            data = original_data.view(1, 3, 32, 32).to(device)
+            data.requires_grad = True
+            output = F.log_softmax(model(data), dim=1)
+            # Call FGSM Attack
+            loss = F.nll_loss(output, original_target.view(1).to(device))
+            model.zero_grad()
+            loss.backward()
+            data_grad = data.grad.data
+            perturbed_data = fgsm_attack_batch(data, epsilon, data_grad)
+            augmented_batch, _, _ = augment.compute_augmentations(perturbed_data.detach().cpu(),
+                                                                  n=1, depth=1, augmentations=augmentations, flip_p=1, rot=(-20.20))
+            
+            augmented_batch = augmented_batch.squeeze(0).to(device)
+            # concatenate the true image and the augmented image
+            perturbed_data = torch.cat((perturbed_data, augmented_batch), 0)
+
+            # Re-classify the perturbed image
+            output_adv = F.log_softmax(model(perturbed_data), dim=1)
+
+            # Check for successful attack
+            final_pred = output_adv.max(1, keepdim=True)[1]
+
+            # Save some adversarial examples and correct classified images
+            if onlybest:
+                criteria = (final_pred[0].item() != target[0].item()) and (final_pred[1].item() == target[0].item())
+            else:
+                criteria = (final_pred[0].item() != target[0].item())
+            if criteria:
+                if len(adv_examples) <= n_samples:
+                    # save adversarial
+                    out_adv = output_adv.detach().cpu()
+                    adv_ex = perturbed_data.detach().cpu()
+                    adv_examples.append((target.detach().cpu(), 
+                                         final_pred.detach().cpu(), 
+                                         adv_ex, out_adv.exp()))
+
+    return correct_classified_examples, miss_classified_examples, adv_examples
+
+
+def getExample_fgsm(model, data_loader, epsilon=0.3, limit=10):
+    adv_examples = []
+    count = 0
+    for data_batch, target_batch in data_loader:
+        if count == limit:
+            break
+        # TODO: This loop could probably be done in a smarter way for speed up
+        for original_data, original_target in zip(data_batch, target_batch):
+            if count == limit:
+                break
+            data = original_data.view(1, 3, 32, 32)
+            target = original_target.view(1)
+            data, target = data.to(device), target.to(device)
+            data.requires_grad = False
+            output = F.log_softmax(model(data), dim=1)
+            init_pred = output.max(1, keepdim=True)[1]
+            
+            data.requires_grad = True
+            output = F.log_softmax(model(data), dim=1)
+            # Call FGSM Attack
+            loss = F.nll_loss(output, original_target.view(1).to(device))
+            model.zero_grad()
+            loss.backward()
+            data_grad = data.grad.data
+            perturbed_data = fgsm_attack_batch(data, epsilon, data_grad)
+            adv_examples.append(perturbed_data.detach().cpu())
+            count+=1
+    return adv_examples
