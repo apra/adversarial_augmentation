@@ -277,13 +277,13 @@ def getExamples(model, data_loader, epsilon=0.3, n=300, augmentations="r", onlyb
     return correct_classified_examples, miss_classified_examples, adv_examples
 
 
-def getExample_fgsm(model, data_loader, epsilon=0.3, limit=10):
+def get_examples_fgsm(model, data_loader, epsilon=0.3, limit=10):
     adv_examples = []
+    original_inputs = []
     count = 0
     for data_batch, target_batch in data_loader:
         if count == limit:
             break
-        # TODO: This loop could probably be done in a smarter way for speed up
         for original_data, original_target in zip(data_batch, target_batch):
             if count == limit:
                 break
@@ -293,7 +293,7 @@ def getExample_fgsm(model, data_loader, epsilon=0.3, limit=10):
             data.requires_grad = False
             output = F.log_softmax(model(data), dim=1)
             init_pred = output.max(1, keepdim=True)[1]
-            
+
             data.requires_grad = True
             output = F.log_softmax(model(data), dim=1)
             # Call FGSM Attack
@@ -302,6 +302,12 @@ def getExample_fgsm(model, data_loader, epsilon=0.3, limit=10):
             loss.backward()
             data_grad = data.grad.data
             perturbed_data = fgsm_attack_batch(data, epsilon, data_grad)
+            output_adv = F.log_softmax(model(perturbed_data), dim=1)
+
+            # Check for successful attack
+            final_pred = output_adv.max(1, keepdim=True)[1]
+            #if (final_pred.item() != init_pred.item()) or (epsilon == 0):
+            original_inputs.append(original_data.unsqueeze(0).detach().cpu())
             adv_examples.append(perturbed_data.detach().cpu())
-            count+=1
-    return adv_examples
+            count += 1
+    return torch.cat(adv_examples, dim = 0), torch.cat(original_inputs, dim=0)
