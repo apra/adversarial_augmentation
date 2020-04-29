@@ -18,7 +18,7 @@ def fgsm_attack_batch(batch, epsilon, data_grad):
     return adversarial_batch
 
 
-def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augmentations="all", v=0, n_examples=100):
+def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augmentations="all", v=0, n_examples=100, temperature=1):
     # Accuracy counter
     correct = 0
     adv_examples = []
@@ -52,7 +52,7 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
         data_batch.requires_grad = True
 
         # Forward pass the data through the model, compute log_softmax to get log-probabilities
-        log_probs = F.log_softmax(model(data_batch), dim=1)
+        log_probs = F.log_softmax(model(data_batch)/temperature, dim=1)
         init_preds = log_probs.max(1, keepdim=True)[1]  # get the index of the max log-probability
 
         loss = F.nll_loss(log_probs, target_batch)
@@ -80,7 +80,7 @@ def test_augmented(model, data_loader, epsilon, mode="mean", n=2, depth=1, augme
             for augmentated_images in augmented_batch:
                 augmentated_images = augmentated_images.to(device)
 
-                output = F.log_softmax(model(augmentated_images), dim=1)
+                output = F.log_softmax(model(augmentated_images)/temperature, dim=1)
 
                 log_probs_aug_batch = torch.cat((log_probs_aug_batch, output.unsqueeze(0)), 0)
 
@@ -184,7 +184,7 @@ def DKLBin(dkl, bin_size=0.2, bin_max=10):
         dkl_count.append(counter / n_images)
     return dkl_count, bins_start
 
-def getExamples(model, data_loader, epsilon=0.3, n=300, augmentations="r", onlybest = False):
+def getExamples(model, data_loader, epsilon=0.3, n=300, augmentations="r", onlybest = False, temperature=1):
     """
     getExamples creates three lists, one list containing the natural errors. One list containing
     correctly classified examples and a final list containing adversarial. Each entry in the list contains the following:
@@ -214,7 +214,7 @@ def getExamples(model, data_loader, epsilon=0.3, n=300, augmentations="r", onlyb
             data, target = data.to(device), target.to(device)
 
             data.requires_grad = False
-            output = F.log_softmax(model(data), dim=1)
+            output = F.log_softmax(model(data)/temperature, dim=1)
             init_pred = output.max(1, keepdim=True)[1]
 
             # If the initial prediction is wrong, dont bother attacking, just move on, 
@@ -240,7 +240,7 @@ def getExamples(model, data_loader, epsilon=0.3, n=300, augmentations="r", onlyb
 
             data = original_data.view(1, 3, 32, 32).to(device)
             data.requires_grad = True
-            output = F.log_softmax(model(data), dim=1)
+            output = F.log_softmax(model(data)/temperature, dim=1)
             # Call FGSM Attack
             loss = F.nll_loss(output, original_target.view(1).to(device))
             model.zero_grad()
@@ -255,7 +255,7 @@ def getExamples(model, data_loader, epsilon=0.3, n=300, augmentations="r", onlyb
             perturbed_data = torch.cat((perturbed_data, augmented_batch), 0)
 
             # Re-classify the perturbed image
-            output_adv = F.log_softmax(model(perturbed_data), dim=1)
+            output_adv = F.log_softmax(model(perturbed_data)/temperature, dim=1)
 
             # Check for successful attack
             final_pred = output_adv.max(1, keepdim=True)[1]
@@ -277,7 +277,7 @@ def getExamples(model, data_loader, epsilon=0.3, n=300, augmentations="r", onlyb
     return correct_classified_examples, miss_classified_examples, adv_examples
 
 
-def get_examples_fgsm(model, data_loader, epsilon=0.3, limit=10):
+def get_examples_fgsm(model, data_loader, epsilon=0.3, limit=10, temperature=1):
     adv_examples = []
     original_inputs = []
     count = 0
@@ -291,18 +291,18 @@ def get_examples_fgsm(model, data_loader, epsilon=0.3, limit=10):
             target = original_target.view(1)
             data, target = data.to(device), target.to(device)
             data.requires_grad = False
-            output = F.log_softmax(model(data), dim=1)
+            output = F.log_softmax(model(data)/temperature, dim=1)
             init_pred = output.max(1, keepdim=True)[1]
 
             data.requires_grad = True
-            output = F.log_softmax(model(data), dim=1)
+            output = F.log_softmax(model(data)/temperature, dim=1)
             # Call FGSM Attack
             loss = F.nll_loss(output, original_target.view(1).to(device))
             model.zero_grad()
             loss.backward()
             data_grad = data.grad.data
             perturbed_data = fgsm_attack_batch(data, epsilon, data_grad)
-            output_adv = F.log_softmax(model(perturbed_data), dim=1)
+            output_adv = F.log_softmax(model(perturbed_data)/temperature, dim=1)
 
             # Check for successful attack
             final_pred = output_adv.max(1, keepdim=True)[1]
