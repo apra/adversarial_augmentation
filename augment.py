@@ -20,7 +20,8 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
                           noise=(0, 25),
                           flip_p=0.5,
                           br_add=25,
-                          shearx_amnt= 20
+                          shearx_amnt= 20,
+                          crop_per = 0.2
                           ):
     if augmentations == "none":
         return original_tensor.unsqueeze(0), None, None
@@ -30,6 +31,7 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
     flip = iaa.Fliplr(flip_p)
     brightness_add = iaa.WithBrightnessChannels(iaa.Add((-br_add, br_add)))
     shear_x = iaa.ShearX((-shearx_amnt, shearx_amnt))
+    cropandpad = iaa.CropAndPad(percent=(-crop_per, crop_per), pad_mode="edge")
     # map them to names that can be used
     augmenters = {
         "rotation": rotate,
@@ -39,7 +41,9 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
         "fliplr": flip,
         "flr": flip,
         "brightness_add": brightness_add,
-        "bra": brightness_add
+        "bra": brightness_add,
+        "shear_x": shear_x,
+        "cropandpad": cropandpad
     }
 
     # Correct dimensions of the image, normalize
