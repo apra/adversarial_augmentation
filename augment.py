@@ -19,9 +19,9 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
                           rot=(-12, 12),
                           noise=(0, 25),
                           flip_p=0.5,
-                          br_add=25,
+                          br_add=100,
                           shearx_amnt= 20,
-                          crop_per = 0.2
+                          crop_per=0.2
                           ):
     if augmentations == "none":
         return original_tensor.unsqueeze(0), None, None
@@ -31,6 +31,7 @@ def compute_augmentations(original_tensor, n=1, depth=1, augmentations="all",
     flip = iaa.Fliplr(flip_p)
     brightness_add = iaa.WithBrightnessChannels(iaa.Add((-br_add, br_add)))
     shear_x = iaa.ShearX((-shearx_amnt, shearx_amnt))
+    crop_per = min(0.999,max(crop_per,0.001))
     cropandpad = iaa.CropAndPad(percent=(-crop_per, crop_per), pad_mode="edge")
     # map them to names that can be used
     augmenters = {

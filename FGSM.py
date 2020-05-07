@@ -231,7 +231,7 @@ def measure_robustness(model, data_loader, increments=0.1, mode="mean", n=2, dep
             while still_standing:
 
                 # Call FGSM Attack and attach to other images
-                adversarial_images = FGSM.fgsm_attack_batch(data, epsilon, data_grad)
+                adversarial_images = fgsm_attack_batch(data, epsilon, data_grad)
 
                 with torch.no_grad():
 

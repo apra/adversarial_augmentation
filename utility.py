@@ -130,7 +130,7 @@ def get_features(model):
     model_feature = nn.Sequential(*modules)
     for p in model_feature.parameters():
         p.requires_grad = False
-    return model_feature, p
+    return model_feature
 
 
 def get_FID(inputs, model_features, device, augmentation="g", noise_level=[0, 10, 20, 30], bottleneck=False):
@@ -154,7 +154,8 @@ def get_FID(inputs, model_features, device, augmentation="g", noise_level=[0, 10
                                                                                   n=1,
                                                                                   depth=1,
                                                                                   noise=(i, i), rot=(i, i),
-                                                                                  br_add=i)
+                                                                                  br_add=i,
+                                                                                  crop_per=i)
 
         plot_batch.append(aug_batches[0][0])
         aug_features = model_features(aug_batches[0].to(device))
