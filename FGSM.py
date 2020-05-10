@@ -145,7 +145,7 @@ def test_time_data_augmentation(input_images, model, n, depth, augmentations, mo
     for augmentated_images in augmented_batch:
         augmentated_images = augmentated_images.to(device)
 
-        output = F.log_softmax(model(augmentated_images) / temperature, dim=1)
+        output = F.log_softmax(model(augmentated_images), dim=1)
 
         log_probs_aug_batch = torch.cat((log_probs_aug_batch, output.unsqueeze(0)), 0)
 

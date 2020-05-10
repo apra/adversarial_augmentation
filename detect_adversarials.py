@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+
 def get_good_adversarial(model, dataloader, epsilon, N, n_classes=10, adversarial_attack=FGSM.fgsm_attack_batch):
     samples_class = {}
     for i in range(n_classes):
@@ -51,9 +52,10 @@ def get_good_adversarial(model, dataloader, epsilon, N, n_classes=10, adversaria
                 if len(samples_class[original_target.item()]) < N:
                     # each element is ((input data, original class), (adversarial data, predicted class))
                     samples_class[original_target.item()].append(((original_data, original_target), (
-                    perturbed_data.squeeze().detach().cpu(), final_pred.squeeze().detach().cpu())))
+                        perturbed_data.squeeze().detach().cpu(), final_pred.squeeze().detach().cpu())))
 
     return samples_class
+
 
 def get_samples_from_classes(model, dataloader, N, n_classes=10, missclass=False):
     samples_class = {}
@@ -115,6 +117,7 @@ def get_kl_augmentations(model, datalist, augmentations, n):
 
     return dkl
 
+
 def get_l1_norm__augmentations(model, datalist, augmentations, n):
     l1_norms = []
     for data in datalist:
@@ -137,69 +140,56 @@ def get_l1_norm__augmentations(model, datalist, augmentations, n):
 
     return l1_norms
 
+
+
 '''
 Plot error-bars on histograms
 '''
 
-def hist_errorbars(data, xerrs=True, label = "", color="r", *args, **kwargs) :
+
+def hist_errorbars(data, xerrs=True, label="", color="r", *args, **kwargs):
     """Plot a histogram with error bars. Accepts any kwarg accepted by either numpy.histogram or pyplot.errorbar"""
     # pop off normed kwarg, since we want to handle it specially
     norm = False
-    if 'normed' in kwargs.keys() :
+    if 'normed' in kwargs.keys():
         norm = kwargs.pop('normed')
 
     # retrieve the kwargs for numpy.histogram
     histkwargs = {}
-    for key, value in kwargs.items() :
-        if key in inspect.signature(np.histogram).parameters.keys() :
+    for key, value in kwargs.items():
+        if key in inspect.signature(np.histogram).parameters.keys():
             histkwargs[key] = value
 
-    histvals, binedges = np.histogram( data, **histkwargs )
+    histvals, binedges = np.histogram(data, **histkwargs)
     yerrs = np.sqrt(histvals)
 
-    if norm :
+    if norm:
         nevents = float(sum(histvals))
-        binwidth = (binedges[1]-binedges[0])
-        histvals = histvals/nevents/binwidth
-        yerrs = yerrs/nevents/binwidth
+        binwidth = (binedges[1] - binedges[0])
+        histvals = histvals / nevents / binwidth
+        yerrs = yerrs / nevents / binwidth
 
-    bincenters = (binedges[1:]+binedges[:-1])/2
+    bincenters = (binedges[1:] + binedges[:-1]) / 2
 
-    if xerrs :
-        xerrs = (binedges[1]-binedges[0])/2
-    else :
+    if xerrs:
+        xerrs = (binedges[1] - binedges[0]) / 2
+    else:
         xerrs = None
 
     # retrieve the kwargs for errorbar
     ebkwargs = {}
-    for key, value in kwargs.items() :
-        if key in inspect.signature(plt.errorbar).parameters.keys() :
+    for key, value in kwargs.items():
+        if key in inspect.signature(plt.errorbar).parameters.keys():
             ebkwargs[key] = value
-    out = plt.errorbar(bincenters, histvals, yerrs, xerrs, fmt="s-", capsize = 3,label = label, color=color, **ebkwargs)
+    out = plt.errorbar(bincenters, histvals, yerrs, xerrs, fmt="s-", capsize=3, label=label, color=color, **ebkwargs)
 
-    if 'log' in kwargs.keys() :
-        if kwargs['log'] :
+    if 'log' in kwargs.keys():
+        if kwargs['log']:
             plt.yscale('log')
 
-    if 'range' in kwargs.keys() :
+    if 'range' in kwargs.keys():
         plt.xlim(*kwargs['range'])
 
     return out
 
 
-class BlackBox(nn.Module):
-    """
-    A thin decorator, which wraps a model with temperature scaling
-    model (nn.Module):
-        A classification neural network
-        NB: Output of the neural network should be the classification logits,
-            NOT the softmax (or log softmax)!
-    """
-    def __init__(self, model):
-        super(BlackBox, self).__init__()
-        self.model = model
-
-    def forward(self, input):
-
-        log_probs = F.log_softmax( self.model(input), dim=1)
-        return log_probs
