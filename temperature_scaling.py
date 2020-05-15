@@ -1,4 +1,7 @@
-#https://github.com/gpleiss/temperature_scaling
+"""
+https://github.com/gpleiss/temperature_scaling
+ALL CREDIT GOES TO GPLEISS
+"""
 
 import torch
 from torch import nn, optim
@@ -9,9 +12,6 @@ class ModelWithTemperature(nn.Module):
     """
     A thin decorator, which wraps a model with temperature scaling
     model (nn.Module):
-        A classification neural network
-        NB: Output of the neural network should be the classification logits,
-            NOT the softmax (or log softmax)!
     """
     def __init__(self, model):
         super(ModelWithTemperature, self).__init__()
@@ -33,9 +33,7 @@ class ModelWithTemperature(nn.Module):
     # This function probably should live outside of this class, but whatever
     def set_temperature(self, valid_loader):
         """
-        Tune the tempearature of the model (using the validation set).
-        We're going to set it to optimize NLL.
-        valid_loader (DataLoader): validation set loader
+        Tune the tempearature of the model using the validation set
         """
         self.cuda()
         nll_criterion = nn.CrossEntropyLoss().cuda()
@@ -78,17 +76,11 @@ class ModelWithTemperature(nn.Module):
 
 class _ECELoss(nn.Module):
     """
-    Calculates the Expected Calibration Error of a model.
-    (This isn't necessary for temperature scaling, just a cool metric).
-    The input to this loss is the logits of a model, NOT the softmax scores.
-    This divides the confidence outputs into equally-sized interval bins.
-    See: Naeini, Mahdi Pakdaman, Gregory F. Cooper, and Milos Hauskrecht.
-    "Obtaining Well Calibrated Probabilities Using Bayesian Binning." AAAI.
-    2015.
+    Calculates the Expected Calibration Error of a model
     """
     def __init__(self, n_bins=15):
         """
-        n_bins (int): number of confidence interval bins
+        n_bins: number of confidence interval bins
         """
         super(_ECELoss, self).__init__()
         bin_boundaries = torch.linspace(0, 1, n_bins + 1)

@@ -1,5 +1,5 @@
 ##############
-# # IMAGE AUGMENTATION (created: 25/03/2020)
+# IMAGE AUGMENTATION (created: 25/03/2020)
 ##############
 import torch
 import torchvision

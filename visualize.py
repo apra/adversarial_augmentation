@@ -18,7 +18,8 @@ def imshow(inputs, title=None, savefigure="temp"):
         plt.title(title)
     # pause a bit so that plots are updated
     plt.savefig("figures/"+savefigure)
-    plt.pause(0.001)
+
+    
 def prep_imshow (inputs):
     inp = torchvision.utils.make_grid(inputs)
     inp = inp.numpy().transpose((1, 2, 0))
@@ -42,9 +43,7 @@ def display_images(inputs, classes, figurename=None):
         plt.text(i * (inputs.shape[2] + 2) + 6, -5, tit, fontsize=12)
     if figurename is not None:
         plt.savefig("figures/" + figurename)
-    plt.pause(0.001)
 
-    
 def visualize_model(model, testloader, classes, num_images=6):
     was_training = model.training
     model.eval()

@@ -110,18 +110,16 @@ def reliability_diagram_plot(accs, confs, bin_size=0.1, title="Reliability Diagr
 
 # calculate frechet inception distance
 def calculate_fid(image1, image2):
-    # calculate mean and covariance statistics
+    # calculate mean and covariance
     mu1, sigma1 = image1.mean(axis=0), np.cov(image1, rowvar=False)
     mu2, sigma2 = image2.mean(axis=0), np.cov(image2, rowvar=False)
-    # calculate sum squared difference between means
-    ssdiff = np.sum((mu1 - mu2) ** 2.0)
-    # calculate sqrt of product between cov
-    covmean = sqrtm(sigma1.dot(sigma2))
-    # check and correct imaginary numbers from sqrt
-    if iscomplexobj(covmean):
-        covmean = covmean.real
+    ss = np.sum((mu1 - mu2) ** 2.0)
+    cov2 = sqrtm(sigma1.dot(sigma2))
+    # if complex get real part
+    if iscomplexobj(cov2):
+        cov2 = cov2.real
     # calculate score
-    fid = ssdiff + trace(sigma1 + sigma2 - 2.0 * covmean)
+    fid = ss + trace(sigma1 + sigma2 - 2.0 * cov2)
     return fid
 
 
@@ -195,43 +193,8 @@ def plot_fid(FID, plot_batch, x_labels=[0, 1, 2, 3], figsize=(10, 5), title="", 
     ax.set_xticklabels(x_labels, fontsize=12)
     ax.set_ylabel(ylabel)
     ax.set_xlabel(xlabel)
-    # ax.set_ylim(0, np.max(FID)*1.5)
     ax.set_ylim(0, ylim)
     ax.plot(FID, marker='*')
     plt.savefig(plot_path)
 
-### OLD METHOD
-def plot_reliability(predicted_probs, real_labels, title="Realiability plot", figsize=(7, 7)):
-    sns.plotting_context("paper")
-    sns.set_style("whitegrid")
-    buckets = list(np.linspace(0, 1, 11))
-    probabilities = np.array([])  # this is the predicted confidence
-    predicted_labels = np.array([])
-    correct_labels = np.array([])
-    for i, probs in enumerate(predicted_probs):
-        probabilities = np.hstack((probabilities, probs.max(1, keepdim=True)[0].exp().squeeze().numpy()))
-        predicted_labels = np.hstack((predicted_labels, probs.max(1, keepdim=True)[1].squeeze().numpy()))
-        correct_labels = np.hstack((correct_labels, real_labels[i].cpu().numpy()))
 
-    bin_index = np.digitize(probabilities, buckets) - 1
-
-    accuracy = np.zeros((len(buckets) - 1, 1))
-    confidence = np.zeros((len(buckets) - 1, 1))
-    size_bins = np.zeros((len(buckets) - 1, 1))
-
-    for i, prob in enumerate(probabilities):
-        size_bins[bin_index[i]] += 1
-        confidence[bin_index[i]] += prob
-        if predicted_labels[i] == correct_labels[i]:
-            accuracy[bin_index[i]] += 1
-
-    accuracy = accuracy / size_bins
-    confidence = confidence / size_bins
-    straight_line = [0, 1]
-
-    f, ax = plt.subplots(figsize=figsize)
-    ax.set_title(title)
-    ax.plot(confidence, accuracy)
-    ax.plot(straight_line, straight_line)
-    ax.set_xlabel("Confidence")
-    ax.set_ylabel("Accuracy")
