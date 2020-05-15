@@ -22,8 +22,8 @@ def load_cifar10(batch_size=4, valid_ratio=0.75):
     validset, testset = torch.utils.data.random_split(validtestset, [valid_len, len(validtestset) - valid_len])
 
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
-    validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle=False, num_workers=2)
-    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=False, num_workers=2)
+    validloader = torch.utils.data.DataLoader(validset, batch_size=batch_size, shuffle=True, num_workers=2)
+    testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=True, num_workers=2)
 
     classes = trainset.classes
     N_tr = len(trainset)
