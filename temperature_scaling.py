@@ -1,6 +1,6 @@
 """
 https://github.com/gpleiss/temperature_scaling
-ALL CREDIT GOES TO GPLEISS
+CREDIT TO GPLEISS
 """
 
 import torch
