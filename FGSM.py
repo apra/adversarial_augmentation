@@ -9,11 +9,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def fgsm_attack_batch(batch, epsilon, data_grad):
-    # Collect the element-wise sign of the data gradient
     sign_data_grad = data_grad.sign()
-    # Create the perturbed image by adjusting each pixel of the input image
+    # Create the perturbed image
     adversarial_batch = batch + epsilon * sign_data_grad
-    # Return the perturbed image
     return adversarial_batch
 
 
