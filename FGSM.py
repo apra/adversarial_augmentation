@@ -1,10 +1,9 @@
-import torch
-import torchvision
 import numpy as np
-import torch.nn.functional as F
-import augment
-import math
+import torch
 import torch.distributions as td
+import torch.nn.functional as F
+
+import augment
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

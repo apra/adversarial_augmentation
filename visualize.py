@@ -29,6 +29,7 @@ def prep_imshow (inputs):
 
 def display_images(inputs, classes, figurename=None):
     inp = prep_imshow(inputs)
+    print(inp.shape)
     plt.imshow(inp)
     plt.tick_params(
         axis='both',  # changes apply to the x-axis
@@ -39,7 +40,7 @@ def display_images(inputs, classes, figurename=None):
         labelleft=False,  # ticks along the top edge are off
         labelbottom=False)  # labels along the bottom edge are off
     for i, tit in enumerate(classes):
-        plt.text(i * (inputs.shape[2] + 2) + 6, -5, tit, fontsize=12)
+        plt.text(i * (inp.shape[0]-2) + inp.shape[0]/2, -5, tit, fontsize=12, horizontalalignment='center')
     if figurename is not None:
         plt.savefig("figures/" + figurename)
     plt.pause(0.001)

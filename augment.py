@@ -1,14 +1,9 @@
-##############
-# # IMAGE AUGMENTATION (created: 25/03/2020)
-##############
-import torch
-import torchvision
-import numpy as np
-import matplotlib.pyplot as plt
 import random
 
 # image augmentation library
 import imgaug as ia
+import numpy as np
+import torch
 from imgaug import augmenters as iaa
 
 random.seed(42)

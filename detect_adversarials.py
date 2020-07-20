@@ -1,16 +1,13 @@
-import torch
-import torchvision
-import numpy as np
-from torch import nn, optim
-import torch.nn.functional as F
-import augment
-import math
-import torch.distributions as td
-import FGSM
-
 # plotting errorbars on histograms
 import inspect
+
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn.functional as F
+
+import FGSM
+import augment
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

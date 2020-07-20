@@ -1,12 +1,12 @@
-import torch
-import torchvision
-import numpy as np
-import time
 import copy
+import time
+
+import torch
 import torch.nn as nn
 import torch.nn.parallel
 import torch.optim as optim
 from torch.optim import lr_scheduler
+
 
 def train(model, trainloader, testloader, num_epochs=25):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

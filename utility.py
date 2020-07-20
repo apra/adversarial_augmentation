@@ -1,25 +1,16 @@
 # math
-import numpy as np
-from numpy.random import random
-from numpy import cov
-from numpy import trace
-from numpy import iscomplexobj
-from scipy.linalg import sqrtm
-
 # plotting
-import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 import seaborn as sns
-
-from matplotlib.patches import Circle
-from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage, AnnotationBbox)
-from matplotlib.cbook import get_sample_data
-import matplotlib.ticker as ticker
-
 # dnn
 import torch
 import torch.nn as nn
 import torchvision
+from matplotlib.offsetbox import (OffsetImage, AnnotationBbox)
+from numpy import iscomplexobj
+from numpy import trace
+from scipy.linalg import sqrtm
 
 # custom library
 import augment
